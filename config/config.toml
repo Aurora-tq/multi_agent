@@ -1,0 +1,31 @@
+ # Global LLM configuration
+[llm]
+model = "gemini-2.0-flash"                                              # The LLM model to use
+base_url = "https://generativelanguage.googleapis.com/v1beta/openai"   # API endpoint URL
+api_key = "AIzaSyDmVIWSlrdfMQUbFuNyLkDrk5evKLBq4-k"                                                # Your API key
+temperature = 0.0                                                       # Controls randomness
+max_tokens = 8096                                                       # Maximum number of tokens in the response
+
+
+# Optional configuration for specific LLM models for Google
+[llm.vision]
+model = "gemini-2.0-flash-exp"                                      # The vision model to use
+base_url = "https://generativelanguage.googleapis.com/v1beta/openai"  # API endpoint URL for vision model
+api_key = "AIzaSyDmVIWSlrdfMQUbFuNyLkDrk5evKLBq4-k"                                               # Your API key for vision model
+max_tokens = 8192                                                      # Maximum number of tokens in the response
+temperature = 0.0                                                      # Controls randomness for vision model
+
+# Optional configuration, Search settings.
+# [search]
+# Search engine for agent to use. Default is "Google", can be set to "Baidu" or "DuckDuckGo" or "Bing".
+#engine = "Google"
+# Fallback engine order. Default is ["DuckDuckGo", "Baidu", "Bing"] - will try in this order after primary engine fails.
+#fallback_engines = ["DuckDuckGo", "Baidu", "Bing"]
+# Seconds to wait before retrying all engines again when they all fail due to rate limits. Default is 60.
+#retry_delay = 60
+# Maximum number of times to retry all engines when all fail. Default is 3.
+#max_retries = 3
+# Language code for search results. Options: "en" (English), "zh" (Chinese), etc.
+#lang = "en"
+# Country code for search results. Options: "us" (United States), "cn" (China), etc.
+#country = "us"

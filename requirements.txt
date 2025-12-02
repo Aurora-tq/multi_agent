@@ -1,0 +1,11 @@
+requests
+beautifulsoup4
+matplotlib
+python-dotenv
+openai
+pandas
+pyyaml
+langchain
+langchain-openai
+langchain-community
+duckduckgo-search

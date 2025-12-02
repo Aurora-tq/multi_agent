@@ -1,0 +1,20 @@
+# config.yaml
+agent_type: gemini # gpt-4o or qwen2.5-vl
+
+gpt-4o:
+  endpoint: https://xxx.openai.azure.com
+  api_key: xxx
+  api_version: 2025-xx-xx
+  model_name: yfb-gpt-4o
+
+qwen:
+  endpoint: https://dashscope.aliyuncs.com/compatible-mode/v1
+  api_key: sk-d201330338764a7fbdc7d106e372e208
+  api_version: null
+  model_name: qwen-plus
+  vlm_model_name: qwen-vl-max
+
+gemini:
+  endpoint: https://generativelanguage.googleapis.com/v1beta
+  api_key: AIzaSyDmVIWSlrdfMQUbFuNyLkDrk5evKLBq4-k
+  model_name: gemini-2.0-flash-exp
