@@ -16,3 +16,6 @@ The system consists of four specialized agents coordinated by a Manager (main.py
 1. **Install dependencies:**
    ```bash
    pip install -r requirements.txt
+## Run
+```bash
+   python main.py
