@@ -2,7 +2,7 @@ from typing import Dict, List, Optional
 
 from pydantic import Field, model_validator
 
-from app.agent.browser import BrowserContextHelper
+from agents.browser import BrowserContextHelper
 from app.agent.toolcall import ToolCallAgent
 from app.config import config
 from app.logger import logger
@@ -10,12 +10,16 @@ from app.prompt.manus import NEXT_STEP_PROMPT, SYSTEM_PROMPT
 from app.tool import Terminate, ToolCollection
 from app.tool.ask_human import AskHuman
 from app.tool.browser_use_tool import BrowserUseTool
-from app.tool.crawl4ai import Crawl4aiTool
+from app.tool.crawl4ai_use import Crawl4aiTool
 from app.tool.mcp import MCPClients, MCPClientTool
 from app.tool.planning import PlanningTool  # <--- 导入新的规划工具
 from app.tool.python_execute import PythonExecute
 from app.tool.str_replace_editor import StrReplaceEditor
 from app.tool.topic_research import TopicResearchTool
+from app.tool.context_filter import StructuredRetrievalTool
+# from app.tool.multi_retrieval import MultiStructuredRetrievalTool
+from app.tool.report_generator import ReportGeneratorTool
+from app.tool.user_context import UserContextTool
 
 
 class Manus(ToolCallAgent):
@@ -34,7 +38,7 @@ class Manus(ToolCallAgent):
     next_step_prompt: str = NEXT_STEP_PROMPT
 
     max_observe: int = 10000
-    max_steps: int = 20  # 增加了最大步数，因为规划和执行复杂任务通常需要更多步骤
+    max_steps: int = 50  # 增加了最大步数，因为规划和执行复杂任务通常需要更多步骤
 
     # MCP clients for remote tool access
     mcp_clients: MCPClients = Field(default_factory=MCPClients)
@@ -42,12 +46,17 @@ class Manus(ToolCallAgent):
     # Add general-purpose tools to the tool collection
     available_tools: ToolCollection = Field(
         default_factory=lambda: ToolCollection(
-            PlanningTool(),       # <--- 核心变更：添加规划工具，取代旧的 ManagerAgent 逻辑
-            TopicResearchTool(),  # LLM 思考并产出链接
+
+            PlanningTool(),       # 规划工具
+            UserContextTool(),    # 用户初始化
+            TopicResearchTool(),  # LLM 思考并产出url
             Crawl4aiTool(),       # 爬虫工具
             BrowserUseTool(),     # 浏览器交互
             PythonExecute(),      # 数据处理与代码执行
+            StructuredRetrievalTool(),  # 内容过滤与结构化
+            #MultiStructuredRetrievalTool(),  # 多文档结构化提取
             StrReplaceEditor(),   # 文件编辑
+            ReportGeneratorTool(), # 报告生成
             AskHuman(),           # 人类交互
             Terminate(),          # 任务终止
         )

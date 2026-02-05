@@ -3,7 +3,7 @@ import os
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, DefaultDict, List, Literal, Optional, get_args
-
+from typing import Union
 from app.config import config
 from app.exceptions import ToolError
 from app.tool import BaseTool
@@ -71,7 +71,7 @@ class StrReplaceEditor(BaseTool):
                 "type": "string",
             },
             "path": {
-                "description": "Absolute path to file or directory.",
+                "description": "Absolute or relative path to file or directory.",
                 "type": "string",
             },
             "file_text": {
@@ -148,6 +148,16 @@ class StrReplaceEditor(BaseTool):
         # Execute the appropriate command
         if command == "view":
             result = await self.view(path, view_range, operator)
+        # elif command == "create":
+        #     # 3. 强制覆盖模式 (解决 "File already exists" 错误)
+        #     try:
+        #         # 使用 'w' 模式，如果文件存在直接覆盖
+        #         async with aiofiles.open(path, 'w', encoding='utf-8') as f:
+        #             await f.write(file_text)
+        #         return ToolResult(output=f"File successfully saved to {path}")
+        #     except Exception as e:
+        #         return ToolResult(error=f"Write failed: {e}")
+            
         elif command == "create":
             if file_text is None:
                 raise ToolError("Parameter `file_text` is required for command: create")
@@ -352,59 +362,128 @@ class StrReplaceEditor(BaseTool):
 
         return CLIResult(output=success_msg)
 
+
+    # async def insert(
+    #     self,
+    #     path: PathLike,
+    #     insert_line: int,
+    #     new_str: str,
+    #     operator: FileOperator = None,
+    # ) -> CLIResult:
+    #     """Insert text at a specific line in a file."""
+    #     # Read and prepare content
+    #     file_text = (await operator.read_file(path)).expandtabs()
+    #     new_str = new_str.expandtabs()
+    #     file_text_lines = file_text.split("\n")
+    #     n_lines_file = len(file_text_lines)
+
+    #     # Validate insert_line
+    #     if insert_line < 0 or insert_line > n_lines_file:
+    #         raise ToolError(
+    #             f"Invalid `insert_line` parameter: {insert_line}. It should be within "
+    #             f"the range of lines of the file: {[0, n_lines_file]}"
+    #         )
+
+    #     # Perform insertion
+    #     new_str_lines = new_str.split("\n")
+    #     new_file_text_lines = (
+    #         file_text_lines[:insert_line]
+    #         + new_str_lines
+    #         + file_text_lines[insert_line:]
+    #     )
+
+    #     # Create a snippet for preview
+    #     snippet_lines = (
+    #         file_text_lines[max(0, insert_line - SNIPPET_LINES) : insert_line]
+    #         + new_str_lines
+    #         + file_text_lines[insert_line : insert_line + SNIPPET_LINES]
+    #     )
+
+    #     # Join lines and write to file
+    #     new_file_text = "\n".join(new_file_text_lines)
+    #     snippet = "\n".join(snippet_lines)
+
+    #     await operator.write_file(path, new_file_text)
+    #     self._file_history[path].append(file_text)
+
+    #     # Prepare success message
+    #     success_msg = f"The file {path} has been edited. "
+    #     success_msg += self._make_output(
+    #         snippet,
+    #         "a snippet of the edited file",
+    #         max(1, insert_line - SNIPPET_LINES + 1),
+    #     )
+    #     success_msg += "Review the changes and make sure they are as expected (correct indentation, no duplicate lines, etc). Edit the file again if necessary."
+
+    #     return CLIResult(output=success_msg)
     async def insert(
         self,
-        path: PathLike,
-        insert_line: int,
+        path: str,
+        insert_line: Union[int, str],  # ← 改为 Union 类型
         new_str: str,
-        operator: FileOperator = None,
-    ) -> CLIResult:
-        """Insert text at a specific line in a file."""
-        # Read and prepare content
-        file_text = (await operator.read_file(path)).expandtabs()
-        new_str = new_str.expandtabs()
-        file_text_lines = file_text.split("\n")
-        n_lines_file = len(file_text_lines)
-
-        # Validate insert_line
+        operator: FileOperator,
+    ) -> str:
+        """
+        Insert new_str at the specified line in the file.
+        
+        Args:
+            path: File path
+            insert_line: Line number (int) or special value ("start", "end")
+            new_str: Content to insert
+            operator: File operator
+        """
+        # 1. 读取文件
+        content = await operator.read_file(path)
+        lines = content.split("\n")
+        n_lines_file = len(lines)
+        
+        # 🔥 2. 处理特殊字符串值
+        if isinstance(insert_line, str):
+            insert_line_lower = insert_line.lower().strip()
+            if insert_line_lower == "end":
+                insert_line = n_lines_file
+            elif insert_line_lower == "start" or insert_line_lower == "beginning":
+                insert_line = 0
+            else:
+                # 尝试转换为整数
+                try:
+                    insert_line = int(insert_line)
+                except ValueError:
+                    raise ValueError(
+                        f"Invalid insert_line value: '{insert_line}'. "
+                        f"Expected: integer, 'start', or 'end'"
+                    )
+        
+        # 3. 确保是整数
+        insert_line = int(insert_line)
+        
+        # 4. 验证范围
         if insert_line < 0 or insert_line > n_lines_file:
-            raise ToolError(
-                f"Invalid `insert_line` parameter: {insert_line}. It should be within "
-                f"the range of lines of the file: {[0, n_lines_file]}"
+            raise ValueError(
+                f"insert_line must be between 0 and {n_lines_file}, got {insert_line}"
             )
-
-        # Perform insertion
-        new_str_lines = new_str.split("\n")
-        new_file_text_lines = (
-            file_text_lines[:insert_line]
-            + new_str_lines
-            + file_text_lines[insert_line:]
+        
+        # 5. 插入新内容
+        new_lines = lines[:insert_line] + [new_str] + lines[insert_line:]
+        new_content = "\n".join(new_lines)
+        
+        # 6. 写回文件
+        await operator.write_file(path, new_content)
+        
+        # 7. 生成预览
+        start_line = max(0, insert_line - 3)
+        end_line = min(len(new_lines), insert_line + 5)
+        preview_lines = []
+        for i in range(start_line, end_line):
+            preview_lines.append(f"{i+1:6d}\t{new_lines[i]}")
+        preview = "\n".join(preview_lines)
+        
+        return (
+            f"The file {path} has been edited. Here's the result of running `cat -n` "
+            f"on a snippet of the edited file:\n{preview}\n\n"
+            f"Review the changes and make sure they are as expected "
+            f"(correct indentation, no duplicate lines, etc). Edit the file again if necessary."
         )
-
-        # Create a snippet for preview
-        snippet_lines = (
-            file_text_lines[max(0, insert_line - SNIPPET_LINES) : insert_line]
-            + new_str_lines
-            + file_text_lines[insert_line : insert_line + SNIPPET_LINES]
-        )
-
-        # Join lines and write to file
-        new_file_text = "\n".join(new_file_text_lines)
-        snippet = "\n".join(snippet_lines)
-
-        await operator.write_file(path, new_file_text)
-        self._file_history[path].append(file_text)
-
-        # Prepare success message
-        success_msg = f"The file {path} has been edited. "
-        success_msg += self._make_output(
-            snippet,
-            "a snippet of the edited file",
-            max(1, insert_line - SNIPPET_LINES + 1),
-        )
-        success_msg += "Review the changes and make sure they are as expected (correct indentation, no duplicate lines, etc). Edit the file again if necessary."
-
-        return CLIResult(output=success_msg)
 
     async def undo_edit(
         self, path: PathLike, operator: FileOperator = None
